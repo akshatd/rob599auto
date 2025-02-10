@@ -39,10 +39,10 @@ title('Position');
 
 % 3D position plot
 figure(3);
-plot3(X(:,1), X(:,2), X(:,3));
-xlabel('x')
+plot3(X(:,3), X(:,2), X(:,1));
+xlabel('z')
 ylabel('y')
-zlabel('z')
+zlabel('x')
 title('3D Position');
 
 
@@ -61,7 +61,7 @@ Ac = double(subs(A, [X_sym; U_sym], [X0; U0]));
 Bc = double(subs(B, [X_sym; U_sym], [X0; U0]));
 
 % Check controllability
-fprintf('Linearized continuous controllability matrix rank: %d\n vs %d\n', rank(ctrb(Ac, Bc)), size(Ac, 1));
+fprintf('Linearized continuous controllability matrix rank: %d vs %d\n', rank(ctrb(Ac, Bc)), size(Ac, 1));
 
 % Discretize the model assunming everything is observable
 Ts = 0.1;
@@ -82,4 +82,4 @@ else
 end
 
 % Check Controllablitity of the discrete model
-fprintf('Linearized discrete controllability matrix rank: %d\n vs %d\n', rank(ctrb(Ad, Bd)), size(Ad, 1));
+fprintf('Linearized discrete controllability matrix rank: %d vs %d\n', rank(ctrb(Ad, Bd)), size(Ad, 1));
