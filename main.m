@@ -46,7 +46,7 @@ zlabel('x')
 title('3D Position');
 
 
-% Linearize model
+% Get jacobians
 syms x y z u v w phi theta psi p q r m
 X_sym = [x; y; z; u; v; w; phi; theta; psi; p; q; r; m];
 syms mu_pitch mu_yaw
@@ -60,18 +60,43 @@ B = jacobian(f, U_sym);
 Ac = double(subs(A, [X_sym; U_sym], [X0; U0]));
 Bc = double(subs(B, [X_sym; U_sym], [X0; U0]));
 
+% check if model is open loop stable
+eigAc = eig(Ac);
+fprintf('Linearized continuous model is ');
+% check if all eigenvalues are in left half plane
+notLeftHalfPlane = eigAc(real(eigAc) >= 0);
+if size(notLeftHalfPlane) ~= 0
+	fprintf('open loop unstable, not all eigenvalues in left half plane:');
+	display(notLeftHalfPlane);
+else
+	fprintf('open loop stable\n');
+end
+
+% Plot the eigenvalues in the complex plane
+figure(4);
+xline(0, 'k', 'DisplayName', 'Half plane Axis');
+hold on;
+plot(real(eigAc), imag(eigAc), 'x', 'MarkerSize', 10, 'DisplayName', 'Eigenvalues');
+xlabel('Real');
+ylabel('Imaginary');
+axis equal;
+title('Eigenvalues of the linearized continuous model');
+legend("Location", "best");
+xlim([-1.25 1.25]);
+ylim([-1.25 1.25]);
+
 % Check controllability
 fprintf('Linearized continuous controllability matrix rank: %d vs %d\n', rank(ctrb(Ac, Bc)), size(Ac, 1));
 
 % Discretize the model assunming everything is observable
-Ts = 0.1;
+Ts = 0.01;
 sysd = c2d(ss(Ac, Bc, eye(size(Ac)), 0), Ts);
 Ad = sysd.A;
 Bd = sysd.B;
 
 % Check if the system is open loop stable
 eigAd = eig(Ad);
-fprintf('Discrete time model is ');
+fprintf('Linearized discrete model is ');
 % check if all eigenvalues are in unit circle
 outsideUnitCircle = eigAd(abs(eigAd) >= 1);
 if size(outsideUnitCircle) ~= 0
@@ -80,6 +105,20 @@ if size(outsideUnitCircle) ~= 0
 else
 	fprintf('open loop stable\n');
 end
+
+% plot the eigenvalues in a unit circle
+theta = 0:0.01:2*pi;
+figure(5);
+plot(cos(theta), sin(theta), 'k', 'DisplayName', 'Unit Circle');
+hold on;
+plot(real(eigAd), imag(eigAd), 'x', 'MarkerSize', 10, 'DisplayName', 'Eigenvalues');
+xlabel('Real');
+ylabel('Imaginary');
+axis equal;
+title('Eigenvalues of the linearized discrete model');
+legend("Location", "best");
+xlim([-1.25 1.25]);
+ylim([-1.25 1.25]);
 
 % Check Controllablitity of the discrete model
 fprintf('Linearized discrete controllability matrix rank: %d vs %d\n', rank(ctrb(Ad, Bd)), size(Ad, 1));
