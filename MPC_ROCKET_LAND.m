@@ -133,48 +133,83 @@ title('Position State Space')
 figure;
 yyaxis left
 plot(x_mpc(4,:), x_mpc(5, :),'b-','LineWidth', 2)
+hold on
+plot(x_hat_mpc(4,:), x_hat_mpc(5, :), 'g--','LineWidth', 2)
 ylabel('x-velocity')
-
 yyaxis right
 plot(x_mpc(4,:), x_mpc(6, :), 'r-','LineWidth', 2)
+hold on
+plot(x_hat_mpc(4,:), x_hat_mpc(6, :), 'k--','LineWidth', 2)
 grid on
 xlabel('z-velocity')
 ylabel('y-velocity')
 title('Velocity State Space')
-legend('v_x, v_z', 'v_y, v_z', location='southeast')
+legend('$v_x, v_z$', '$\hat{v}_x, \hat{v}_z$', '$v_y, v_z$', '$\hat{v}_y, \hat{v}_z$', 'Interpreter', 'latex', 'Location', 'southeast', 'FontSize', 12)
 
 figure;
+sgtitle('Position States')
+
+subplot(3,1,1)
 hold on
 grid on
 plot(x_mpc(1,:), 'r-','LineWidth', 2)
-plot(x_mpc(2,:), 'g-','LineWidth', 2)
-plot(x_mpc(3,:), 'b-','LineWidth', 2)
-
-legend('r_x', 'r_y', 'r_z')
-title('Position States')
+plot(x_hat_mpc(1,:), 'k--','LineWidth', 2)
 ylabel('Distance [m]')
+legend('$r_x$', '$\hat{r}_x$', 'Interpreter', 'latex', 'FontSize', 12)
+
+subplot(3,1,2)
+hold on
+grid on
+plot(x_mpc(2,:), 'g-','LineWidth', 2)
+plot(x_hat_mpc(2,:), 'k--','LineWidth', 2)
+ylabel('Distance [m]')
+legend('$r_y$', '$\hat{r}_y$', 'Interpreter', 'latex', 'FontSize', 12)
+
+subplot(3,1,3)
+hold on
+grid on
+plot(x_mpc(3,:), 'b-','LineWidth', 2)
+plot(x_hat_mpc(3,:), 'm--','LineWidth', 2)
+ylabel('Distance [m]')
+legend('$r_z$', '$\hat{r}_z$', 'Interpreter', 'latex', 'FontSize', 12)
+xlabel('Time Steps T')
+hold off
+
+figure;
+sgtitle('Velocity States')
+
+subplot(3,1,1)
+hold on
+grid on
+plot(x_mpc(4,:), 'r-','LineWidth', 2)
+plot(x_hat_mpc(4,:), 'k--','LineWidth', 2)
+ylabel('Velocity [m/s]')
+legend('$v_x$', '$\hat{v}_x$', 'Interpreter', 'latex', 'FontSize', 12)
+
+subplot(3,1,2)
+hold on
+grid on
+plot(x_mpc(5,:), 'g-','LineWidth', 2)
+plot(x_hat_mpc(5,:), 'k--','LineWidth', 2)
+ylabel('Velocity [m/s]')
+legend('$v_y$', '$\hat{v}_y$', 'Interpreter', 'latex', 'FontSize', 12)
+
+subplot(3,1,3)
+hold on
+grid on
+plot(x_mpc(6,:), 'b-','LineWidth', 2)
+plot(x_hat_mpc(6,:), 'm--','LineWidth', 2)
+ylabel('Velocity [m/s]')
+legend('$v_z$', '$\hat{v}_z$', 'Interpreter', 'latex', 'FontSize', 12)
 xlabel('Time Steps T')
 hold off
 
 figure;
 hold on
 grid on
-plot(x_mpc(4,:), 'r-','LineWidth', 2)
-plot(x_mpc(5,:), 'g-','LineWidth', 2)
-plot(x_mpc(6,:), 'b-','LineWidth', 2)
-
-legend('v_x', 'v_y', 'v_z', location='southeast')
-title('Velocity States')
-ylabel('Velocity [m/s]')
-xlabel('Time Steps')
-hold off
-
-figure;
-hold on
-grid on
-plot(u_mpc(1,:), 'r-','LineWidth', 2)
-plot(u_mpc(2,:), 'g-','LineWidth', 2)
-plot(u_mpc(3,:), 'b-','LineWidth', 2)
+plot(u_mpc(1,:), 'r-','LineWidth', 1.5)
+plot(u_mpc(2,:), 'g-','LineWidth', 1.5)
+plot(u_mpc(3,:), 'b-','LineWidth', 1.5)
 
 legend('f_x', 'f_y', 'f_z')
 title('Control Input')
@@ -187,7 +222,7 @@ plot3(x_mpc(1,:),x_mpc(2,:),x_mpc(3,:), 'LineWidth',2);
 xlabel('r_x');
 ylabel('r_y');
 zlabel('r_z');
-title('Position States');
+title('Position States (3D)');
 
 % Set up the video writer
 %video_name = 'Rocket_animation';
