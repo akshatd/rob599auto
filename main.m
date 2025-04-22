@@ -2,14 +2,14 @@ clc; clear; close all;
 
 m0 = 100000;
 
-% Initial state: X = [x y z u v w phi theta psi p q r m]
-X0 = [0; 0; 0; 0.1; 0; 0; 0; 0; 0; 0; 0; 0; m0];
+%% Initial state: X = [x y z u v w phi theta psi p q r m]
+X0 = [0; 0; 0; 100; 10; 0; 0; 0; 0; 0; 0; 0; m0];
 U0 = [0; 0];
 % Time span
 t_end = 10;
 tspan = [0 t_end];
 
-% ODE45 Solver
+%% Simulate nonlinear dynamics
 [t, X] = ode15s(@(t, X) sixDOF_EOM_STVCR(t, X, U0), tspan, X0);
 
 % Plot results
@@ -48,7 +48,7 @@ ylabel('y');
 zlabel('x');
 title('3D Position');
 
-
+%% Linearize
 % Get jacobians
 syms x y z u v w phi theta psi p q r m
 X_sym = [x; y; z; u; v; w; phi; theta; psi; p; q; r; m];
@@ -63,16 +63,17 @@ B = jacobian(f, U_sym);
 Ac = double(subs(A, [X_sym; U_sym], [X0; U0]));
 Bc = double(subs(B, [X_sym; U_sym], [X0; U0]));
 
+%% analyze linear discrete model
 % check if model is open loop stable
 eigAc = eig(Ac);
 fprintf('Linearized continuous model is ');
 % check if all eigenvalues are in left half plane
 notLeftHalfPlane = eigAc(real(eigAc) >= 0);
 if size(notLeftHalfPlane) ~= 0
-	fprintf('open loop unstable, not all eigenvalues in left half plane:');
-	display(notLeftHalfPlane);
+    fprintf('open loop unstable, not all eigenvalues in left half plane:');
+    display(notLeftHalfPlane);
 else
-	fprintf('open loop stable\n');
+    fprintf('open loop stable\n');
 end
 
 % Plot the eigenvalues in the complex plane
@@ -104,10 +105,10 @@ fprintf('Linearized discrete model is ');
 % check if all eigenvalues are in unit circle
 outsideUnitCircle = eigAd(abs(eigAd) >= 1);
 if size(outsideUnitCircle) ~= 0
-	fprintf('open loop unstable, eigenvalues outside unit circle:');
-	display(outsideUnitCircle);
+    fprintf('open loop unstable, eigenvalues outside unit circle:');
+    display(outsideUnitCircle);
 else
-	fprintf('open loop stable\n');
+    fprintf('open loop stable\n');
 end
 
 % plot the eigenvalues in a unit circle
@@ -128,15 +129,15 @@ saveas(fig, 'figs/eig_lin_disc.png');
 % Check Controllablitity of the discrete model
 fprintf('Linearized discrete controllability matrix rank: %d vs %d\n', rank(ctrb(Ad, Bd)), size(Ad, 1));
 
-% Simulate using the discrete model
+%% Simulate using the discrete model
 tspan = 0:ts:t_end;
 Xk = X0;
 Xk_hist = zeros(length(X0), length(tspan));
 Xk_hist(:,1) = X0;
 Uk = U0;
 for i = 2:length(tspan)
-	Xk = Ad*Xk + Bd*Uk;
-	Xk_hist(:,i) = Xk;
+    Xk = Ad*Xk + Bd*Uk;
+    Xk_hist(:,i) = Xk;
 end
 
 % Plot results

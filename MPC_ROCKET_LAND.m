@@ -15,11 +15,11 @@ C = eye(width(A));
 D = zeros(height(B),width(B));
 
 Q = [100 0 0 0 0 0;
-     0 100 0 0 0 0;
-     0 0 5 0 0 0;
-     0 0 0 1 0 0;
-     0 0 0 0 1 0;
-     0 0 0 0 0 100];
+    0 100 0 0 0 0;
+    0 0 5 0 0 0;
+    0 0 0 1 0 0;
+    0 0 0 0 1 0;
+    0 0 0 0 0 100];
 R = eye(3)*0.1;
 
 n = size(A, 2);
@@ -27,10 +27,13 @@ m = size(B, 2);
 p = size(C, 1);
 N = 5;
 
-%K_inf = dlqr(A, B, Q, R)
-K_2 = -place(A, B, [0.01 0.01 0 0.01 0 0]);
+% linear terminal penalty
+[~, P, ~] = dlqr(A, B, Q, R);
 
-P = dlyap((A+B*K_2)', Q+K_2'*R*K_2);
+% nonlinear terminal penalty
+% K_2 = -place(A, B, [0.01 0.01 0 0.01 0 0]);
+% P = dlyap((A+B*K_2)', Q+K_2'*R*K_2);
+
 [F, G] = predict_mats(A, B, N);
 
 [H, L, M] = cost_mats(F, G, Q, R, P);
@@ -65,21 +68,45 @@ qu = [umax; -umin];
 
 k = 1;
 
+% Kalman filter parameters
+noise_process = 0.001*eye(6);
+noise_measurement = 0.001*eye(6);
+Q_kf = 0.01*eye(6);
+R_kf = 0.0001*eye(6);
+P_kf = eye(6); % Initial error covariance matrix
+C = eye(6);
+x_hat = x0;
+
+x_mpc = zeros(n, time_steps);
+u_mpc = zeros(m, time_steps);
+x_hat_mpc = zeros(n, time_steps);
+opts = optimoptions('fmincon', 'SpecifyObjectiveGradient', false);
+Uopt = zeros(m*N, 1);
+Uopt(1:m, :) = u0;
 while k<=time_steps
     % Disturbances
-    w_x = sin(k/50); 
+    w_x = sin(k/50);
     w_y = cos(k/50);
-
-    Uopt = quadprog(H, L*x, Pc, qc+Sc*x);
+    
+    % Uopt = quadprog(H, L*x, Pc, qc+Sc*x);
+    % Uopt = quadprog(H, L*x_hat, Pc, qc+Sc*x_hat);
+    
+    % Uopt = fmincon(@(u) dyn_grad(u, H, L*x), Uopt, Pc, qc+Sc*x, [], [], [], [], [], opts);
+    Uopt = fmincon(@(u) dyn_grad(u, H, L*x_hat), Uopt, Pc, qc+Sc*x_hat, [], [], [], [], [], opts);
+    
     % Check if Uopt is not empty before assigning values
     if isempty(Uopt)
         break
     end
     uopt = Uopt(1:m, :);
-
+    
     % Update the state with disturbance
-    x = A*x + B*(uopt + [w_x w_y 0]');    
-
+    x = A*x + B*(uopt + [w_x w_y 0]') + mvnrnd(zeros(size(x0)), noise_process, 1)';
+    y = C*x + mvnrnd(zeros(size(x0)), noise_measurement, 1)';
+    
+    % Kalman filter update
+    [x_hat, P_kf] = kalman_filter(x_hat, uopt, y, Q_kf, R_kf, P_kf, A, B, C);
+    x_hat_mpc(:, k) = x_hat;
     x_mpc(:, k) = x;
     u_mpc(:, k) = uopt;
     k = k + 1;
@@ -156,14 +183,14 @@ ylabel('r_y');
 zlabel('r_z');
 title('Position States');
 
-figure; 
+figure;
 axis([0 600 0 600 0 600])
 plot3(x_mpc(1,:),x_mpc(2,:),x_mpc(3,:), 'LineWidth',2);
 xlabel('r_x');
 ylabel('r_y');
 zlabel('r_z');
 title('Position States');
-hold on 
+hold on
 % Set up the video writer
 %video_name = 'Rocket_animation';
 %v = VideoWriter([video_name, '.mp4'], 'MPEG-4');
@@ -184,104 +211,128 @@ hold on
 %close(v);
 
 
-function [Pc, qc, Sc] = constraint_mats(F,G,Pu,qu,Px,qx,Pxf,qxf)    
-    % input dimension
-    m = size(Pu,2);
-    
-    % state dimension
-    n = size(F,2);
-    
-    % horizon length
-    N = size(F,1)/n;
-    
-    % number of input constraints
-    ncu = numel(qu);
-    
-    % number of state constraints
-    ncx = numel(qx);
-    
-    % number of terminal constraints
-    ncf = numel(qxf);
-    
-    % if state constraints exist, but terminal ones do not, then extend the
-    % former to the latter
-    if ncf == 0 && ncx > 0
-        Pxf = Px;
-        qxf = qx;
-        ncf = ncx;
-    end
-    
-    % Input constraints
-    
-    % Build "tilde" (stacked) matrices for constraints over horizon
-    Pu_tilde = kron(eye(N),Pu);
-    qu_tilde = kron(ones(N,1),qu);
-    Scu = zeros(ncu*N,n);
-    
-    % State constraints
-    
-    % Build "tilde" (stacked) matrices for constraints over horizon
-    Px0_tilde = [Px; zeros(ncx*(N-1) + ncf,n)];
-    if ncx > 0
-        Px_tilde = [kron(eye(N-1),Px) zeros(ncx*(N-1),n)];
-    else
-        Px_tilde = zeros(ncx,n*N);
-    end
-    Pxf_tilde = [zeros(ncf,n*(N-1)) Pxf];
-    Px_tilde = [zeros(ncx,n*N); Px_tilde; Pxf_tilde];
-    qx_tilde = [kron(ones(N,1),qx); qxf];
-    
-    % Final stack
-    if isempty(Px_tilde)
-        Pc = Pu_tilde;
-        qc = qu_tilde;
-        Sc = Scu;
-    else
-        % eliminate x for final form
-        Pc = [Pu_tilde; Px_tilde*G];
-        qc = [qu_tilde; qx_tilde];
-        Sc = [Scu; -Px0_tilde - Px_tilde*F];
-    end
+function [Pc, qc, Sc] = constraint_mats(F,G,Pu,qu,Px,qx,Pxf,qxf)
+% input dimension
+m = size(Pu,2);
+
+% state dimension
+n = size(F,2);
+
+% horizon length
+N = size(F,1)/n;
+
+% number of input constraints
+ncu = numel(qu);
+
+% number of state constraints
+ncx = numel(qx);
+
+% number of terminal constraints
+ncf = numel(qxf);
+
+% if state constraints exist, but terminal ones do not, then extend the
+% former to the latter
+if ncf == 0 && ncx > 0
+    Pxf = Px;
+    qxf = qx;
+    ncf = ncx;
 end
 
-function [H,L,M] = cost_mats(F,G,Q,R,P)   
-    % Dimensions
-    n = size(F,2);
-    N = size(F,1)/n;
-    
-    % Diagonalize Q and R
-    Qd = kron(eye(N-1),Q);
-    Qd = blkdiag(Qd,P);
-    Rd = kron(eye(N),R);
-    
-    % Hessian
-    H = 2*G'*Qd*G + 2*Rd;
-    
-    % Linear term
-    L = 2*G'*Qd*F;
-    
-    % Constant term
-    M = F'*Qd*F + Q;
-    
-    % Make sure the Hessian is symmetric
-    H=(H+H')/2;
+% Input constraints
+
+% Build "tilde" (stacked) matrices for constraints over horizon
+Pu_tilde = kron(eye(N),Pu);
+qu_tilde = kron(ones(N,1),qu);
+Scu = zeros(ncu*N,n);
+
+% State constraints
+
+% Build "tilde" (stacked) matrices for constraints over horizon
+Px0_tilde = [Px; zeros(ncx*(N-1) + ncf,n)];
+if ncx > 0
+    Px_tilde = [kron(eye(N-1),Px) zeros(ncx*(N-1),n)];
+else
+    Px_tilde = zeros(ncx,n*N);
+end
+Pxf_tilde = [zeros(ncf,n*(N-1)) Pxf];
+Px_tilde = [zeros(ncx,n*N); Px_tilde; Pxf_tilde];
+qx_tilde = [kron(ones(N,1),qx); qxf];
+
+% Final stack
+if isempty(Px_tilde)
+    Pc = Pu_tilde;
+    qc = qu_tilde;
+    Sc = Scu;
+else
+    % eliminate x for final form
+    Pc = [Pu_tilde; Px_tilde*G];
+    qc = [qu_tilde; qx_tilde];
+    Sc = [Scu; -Px0_tilde - Px_tilde*F];
+end
 end
 
-function [F,G] = predict_mats(A,B,N)   
-    % Dimensions
-    n = size(A,1);
-    m = size(B,2);
+function [H,L,M] = cost_mats(F,G,Q,R,P)
+% Dimensions
+n = size(F,2);
+N = size(F,1)/n;
+
+% Diagonalize Q and R
+Qd = kron(eye(N-1),Q);
+Qd = blkdiag(Qd,P);
+Rd = kron(eye(N),R);
+
+% Hessian
+H = 2*G'*Qd*G + 2*Rd;
+
+% Linear term
+L = 2*G'*Qd*F;
+
+% Constant term
+M = F'*Qd*F + Q;
+
+% Make sure the Hessian is symmetric
+H=(H+H')/2;
+end
+
+function [F,G] = predict_mats(A,B,N)
+% Dimensions
+n = size(A,1);
+m = size(B,2);
+
+F = zeros(n*N,n);
+G = zeros(n*N,m*(N-1));
+
+for i = 1:N
+    %  F
+    F(n*(i-1)+(1:n),:) = A^i;
     
-    F = zeros(n*N,n);
-    G = zeros(n*N,m*(N-1));
-    
-    for i = 1:N
-       %  F
-       F(n*(i-1)+(1:n),:) = A^i;
-       
-       % G
-       for j = 1:i
-           G(n*(i-1)+(1:n),m*(j-1)+(1:m)) = A^(i-j)*B;
-       end
+    % G
+    for j = 1:i
+        G(n*(i-1)+(1:n),m*(j-1)+(1:m)) = A^(i-j)*B;
     end
+end
+end
+
+function f = dyn_grad(x, H, f)
+f = 0.5*x'*H*x + f'*x;
+end
+
+function [x_hat, P] = kalman_filter(x, u, y, Q, R, P_0, A, B, C)
+% Kalman filter implementation
+% x: state vector
+% u: control input
+% y: measurement vector
+% Q: process noise covariance
+% R: measurement noise covariance
+% P_0: initial error covariance matrix
+% C: measurement matrix
+
+% Prediction step
+x_hat = A * x + B * u;
+P = A * P_0 * A' + Q;
+
+% Measurement update step
+K = P * C' / (C * P * C' + R);
+x_hat = x_hat + K * (y - C * x_hat);
+P = P - K * C * P;
 end
