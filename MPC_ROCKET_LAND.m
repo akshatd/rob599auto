@@ -69,13 +69,13 @@ qu = [umax; -umin];
 k = 1;
 
 % Kalman filter parameters
-noise_process = 0.001*eye(6);
-noise_measurement = 0.001*eye(6);
-Q_kf = 0.01*eye(6);
-R_kf = 0.0001*eye(6);
+noise_process = 0.01*eye(6);
+noise_measurement = 0.01*eye(6);
+Q_kf = 0.1*eye(6);
+R_kf = 0.001*eye(6);
 P_kf = eye(6); % Initial error covariance matrix
 C = eye(6);
-x_hat = x0;
+x_hat = x0+0.2*x0;
 A_kf = A+0.1;
 B_kf = B+0.1;
 x_mpc = zeros(n, time_steps);
@@ -112,26 +112,31 @@ while k<=time_steps
     u_mpc(:, k) = uopt;
     k = k + 1;
 end
-
+%% Plotting
 figure;
 yyaxis left
-plot(x_mpc(1,:), x_mpc(2, :),'b-')
+plot(x_mpc(1,:), x_mpc(2, :),'b-','LineWidth', 2)
+hold on
+plot(x_hat_mpc(1,:), x_hat_mpc(2, :), 'g--','LineWidth', 2)
 ylabel('x')
 yyaxis right
-plot(x_mpc(1,:), x_mpc(3, :), 'r-')
+plot(x_mpc(1,:), x_mpc(3, :), 'r-','LineWidth', 2)
+hold on
+plot(x_hat_mpc(1,:), x_hat_mpc(3, :), 'k--','LineWidth', 2)
 grid on
 xlabel('z')
 ylabel('y')
-legend('r_x, r_z', 'r_y, r_z', location='southeast')
+% legend('r_x, r_z', 'r_y, r_z', location='southeast')
+legend('$r_x, r_z$', '$\hat{r}_x, \hat{r}_z$', '$r_y, r_z$', '$\hat{r}_y, \hat{r}_z$', 'Interpreter', 'latex', 'Location', 'southeast', 'FontSize', 12)
 title('Position State Space')
 
 figure;
 yyaxis left
-plot(x_mpc(4,:), x_mpc(5, :),'b-')
+plot(x_mpc(4,:), x_mpc(5, :),'b-','LineWidth', 2)
 ylabel('x-velocity')
 
 yyaxis right
-plot(x_mpc(4,:), x_mpc(6, :), 'r-')
+plot(x_mpc(4,:), x_mpc(6, :), 'r-','LineWidth', 2)
 grid on
 xlabel('z-velocity')
 ylabel('y-velocity')
@@ -141,9 +146,9 @@ legend('v_x, v_z', 'v_y, v_z', location='southeast')
 figure;
 hold on
 grid on
-plot(x_mpc(1,:), 'r-')
-plot(x_mpc(2,:), 'g-')
-plot(x_mpc(3,:), 'b-')
+plot(x_mpc(1,:), 'r-','LineWidth', 2)
+plot(x_mpc(2,:), 'g-','LineWidth', 2)
+plot(x_mpc(3,:), 'b-','LineWidth', 2)
 
 legend('r_x', 'r_y', 'r_z')
 title('Position States')
@@ -154,9 +159,9 @@ hold off
 figure;
 hold on
 grid on
-plot(x_mpc(4,:), 'r-')
-plot(x_mpc(5,:), 'g-')
-plot(x_mpc(6,:), 'b-')
+plot(x_mpc(4,:), 'r-','LineWidth', 2)
+plot(x_mpc(5,:), 'g-','LineWidth', 2)
+plot(x_mpc(6,:), 'b-','LineWidth', 2)
 
 legend('v_x', 'v_y', 'v_z', location='southeast')
 title('Velocity States')
@@ -167,9 +172,9 @@ hold off
 figure;
 hold on
 grid on
-plot(u_mpc(1,:), 'r-')
-plot(u_mpc(2,:), 'g-')
-plot(u_mpc(3,:), 'b-')
+plot(u_mpc(1,:), 'r-','LineWidth', 2)
+plot(u_mpc(2,:), 'g-','LineWidth', 2)
+plot(u_mpc(3,:), 'b-','LineWidth', 2)
 
 legend('f_x', 'f_y', 'f_z')
 title('Control Input')
