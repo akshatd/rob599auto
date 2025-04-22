@@ -76,7 +76,8 @@ R_kf = 0.0001*eye(6);
 P_kf = eye(6); % Initial error covariance matrix
 C = eye(6);
 x_hat = x0;
-
+A_kf = A+0.1;
+B_kf = B+0.1;
 x_mpc = zeros(n, time_steps);
 u_mpc = zeros(m, time_steps);
 x_hat_mpc = zeros(n, time_steps);
@@ -105,7 +106,7 @@ while k<=time_steps
     y = C*x + mvnrnd(zeros(size(x0)), noise_measurement, 1)';
     
     % Kalman filter update
-    [x_hat, P_kf] = kalman_filter(x_hat, uopt, y, Q_kf, R_kf, P_kf, A, B, C);
+    [x_hat, P_kf] = kalman_filter(x_hat, uopt, y, Q_kf, R_kf, P_kf, A_kf, B_kf, C);
     x_hat_mpc(:, k) = x_hat;
     x_mpc(:, k) = x;
     u_mpc(:, k) = uopt;
@@ -183,14 +184,6 @@ ylabel('r_y');
 zlabel('r_z');
 title('Position States');
 
-figure;
-axis([0 600 0 600 0 600])
-plot3(x_mpc(1,:),x_mpc(2,:),x_mpc(3,:), 'LineWidth',2);
-xlabel('r_x');
-ylabel('r_y');
-zlabel('r_z');
-title('Position States');
-hold on
 % Set up the video writer
 %video_name = 'Rocket_animation';
 %v = VideoWriter([video_name, '.mp4'], 'MPEG-4');
